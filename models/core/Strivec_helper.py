@@ -96,8 +96,6 @@ class StrivecBase_hier(torch.nn.Module):
         else:
             print("Unrecognized shading module")
             exit()
-        print("pos_pe", pos_pe, "view_pe", view_pe, "fea_pe", fea_pe)
-        print(self.renderModule)
 
 
     def sample_ray(self, rays_o, rays_d, is_train=True, N_samples=-1):
@@ -134,7 +132,6 @@ class StrivecBase_hier(torch.nn.Module):
         kwargs = self.get_kwargs()
         ckpt = {'kwargs': kwargs, 'state_dict': self.state_dict()}
         torch.save(ckpt, path)
-        print("state_dict", ckpt["state_dict"].keys())
         size = os.path.getsize(path) / 1024.0 / 1024.0  
         print("ckpt", path, " size: {:.2f}".format(size) , " mb")
 
@@ -151,7 +148,6 @@ class StrivecBase_hier(torch.nn.Module):
        
         for l in range(self.lvl):
             unit = self.args.local_unit[l]
-            print("unit of level {} is {}".format(self.lvl, unit))
             dims = np.ceil((box_length[l] * self.args.dilation_ratio[l] - unit) * 0.5  / unit).astype(np.int16)
             local_dims.append((torch.as_tensor(dims, dtype=torch.int16, device=self.device) * 2 + 1).contiguous())
             local_range.append(torch.as_tensor((dims+0.5) * unit, dtype=torch.float32, device=self.device).contiguous())
@@ -169,7 +165,6 @@ class StrivecBase_hier(torch.nn.Module):
             print(torch.mean(self.units) , self.step_ratio)
             self.gridSize = torch.ceil(self.aabbSize / self.units).long().to(self.device)
             self.radius = torch.norm(self.local_range, dim=-1).cpu().tolist()
-            print("radius, furthest shading to tensoRF distance: ", self.radius)
         else:
             print("not implemented")
             exit()

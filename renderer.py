@@ -17,7 +17,6 @@ def OctreeRender_trilinear_fast(rays, tensorf, time_emb = None, chunk=4096, N_sa
     # now we have a single value of time_emb, it is scalar and we need to repeat it for all the rays
     # and also all the rgbs.
 
-    
     for chunk_idx in range(N_rays_all // chunk + int(N_rays_all % chunk > 0)):
 
         rays_chunk = rays[chunk_idx * chunk:(chunk_idx + 1) * chunk].to(device)
@@ -67,7 +66,6 @@ def evaluation(test_dataset, tensorf, args, renderer, savePath=None, N_vis=5, pr
         img_eval_interval = args.vis_interval
         idxs = list(range(0, test_dataset.frames_num * test_dataset.cameras_num , img_eval_interval))
         if args.recon_mode == 'test_static':
-            print("test_dataset all rgbs number: ", test_dataset.all_rgbs.shape[0])
             idxs = list(range(0, test_dataset.all_rgbs.shape[0] , img_eval_interval))
 
     if len(test_dataset.img_wh) > 2:
@@ -248,8 +246,6 @@ def evaluation_path(test_dataset,tensorf, c2ws, renderer, savePath=None, N_vis=5
         c2w = torch.FloatTensor(c2w)
         rays_o, rays_d = get_rays(test_dataset.directions, c2w)  # both (h*w, 3)
         
-        print("rays_o, rays_d", rays_o.shape, rays_d.shape)
-        
         if ray_type == 1:
             rays_o, rays_d = ndc_rays_blender(H, W, test_dataset.focal[0], 1.0, rays_o, rays_d)
         rays = torch.cat([rays_o, rays_d], 1)  # (h*w, 6)
@@ -274,15 +270,6 @@ def evaluation_path(test_dataset,tensorf, c2ws, renderer, savePath=None, N_vis=5
     imageio.mimwrite(f'{savePath}/{prtx}video.mp4', np.stack(rgb_maps), fps=30, quality=8)
     imageio.mimwrite(f'{savePath}/{prtx}depthvideo.mp4', np.stack(depth_maps), fps=30, quality=8)
 
-    if PSNRs:
-        psnr = np.mean(np.asarray(PSNRs))
-        if compute_extra_metrics:
-            ssim = np.mean(np.asarray(ssims))
-            l_a = np.mean(np.asarray(l_alex))
-            l_v = np.mean(np.asarray(l_vgg))
-            np.savetxt(f'{savePath}/{prtx}mean.txt', np.asarray([psnr, ssim, l_a, l_v]))
-        else:
-            np.savetxt(f'{savePath}/{prtx}mean.txt', np.asarray([psnr]))
 
 
     return PSNRs

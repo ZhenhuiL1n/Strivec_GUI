@@ -58,7 +58,7 @@ def gen_geo(args, geo):
             geo_lvl, _, _, _ = mvs_utils.construct_voxrange_points_mean(geo_xyz, torch.as_tensor(args.vox_range[i], dtype=torch.float32, device=geo.device), vox_center=args.vox_center[i]>0)
             print("after vox geo shape", geo_lvl.shape)
             # import pdb; pdb.set_trace()
-            np.save(args.pointfile[:-4] + "_{}_vox".format(args.vox_range[i][0]) + ".npy", geo_lvl.cpu().numpy())
+            np.save(os.path.join(args.basedir, args.expname, "geo_{}_vox".format(args.vox_range[i][0]) + ".npy"), geo_lvl.cpu().numpy())
             geo_lst.append(geo_lvl.cuda())
 
     if args.fps_num is not None:

@@ -2,7 +2,7 @@ import torch, re
 import numpy as np
 from torch import searchsorted
 from kornia import create_meshgrid
-
+from scipy.spatial.transform import Rotation as R
 
 # from utils import index_point_feature
 class SimpleSampler:
@@ -207,7 +207,6 @@ def ray_marcher(rays,
     Returns:
 
     """
-
     # Decompose the inputs
     N_rays = rays.shape[0]
     rays_o, rays_d = rays[:, 0:3], rays[:, 3:6]  # both (N_rays, 3)

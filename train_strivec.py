@@ -75,12 +75,18 @@ def get_image_perm(n_images):
     return torch.arange(0, n_images).long()
 
 def train(args, train_dataset, render_dataset):
-    # train_dataset = Dataset(args)
-    # render_dataset = train_dataset
-    # allrays, allmasks, allrgbs = train_dataset.gen_all_rays_at_time(0, resolution_level=1)
-    # sphere_near, sphere_far = train_dataset.near_far_from_sphere(allrays[:3], allrays[3:6])
-    # print("sphere near and far ------->", sphere_near, sphere_far)
     
+    if args.add_timestamp:
+        logfolder = f'{args.basedir}/{args.expname}{datetime.datetime.now().strftime("-%Y%m%d-%H%M%S")}'
+    else:
+        logfolder = f'{args.basedir}/{args.expname}'
+
+    # init log file
+    os.makedirs(logfolder, exist_ok=True)
+    os.makedirs(f'{logfolder}/imgs_vis', exist_ok=True)
+    os.makedirs(f'{logfolder}/imgs_rgba', exist_ok=True)
+    os.makedirs(f'{logfolder}/rgba', exist_ok=True)
+   
     # Now do the initialization of the geometrys for a n_frames we want....
     pnts = get_density_pnts(args, train_dataset) if args.use_geo < 0 else None
     cluster_dict, geo = gen_geo(args, pnts)
@@ -103,29 +109,14 @@ def train(args, train_dataset, render_dataset):
     
     print("white_bg", white_bg, "near_far", train_dataset.near_far, "start training.......")
 
-    
+
     # we have intialized the geo and the dataset, now we need to intialize the model.
     
     # init resolution
     update_AlphaMask_list = args.update_AlphaMask_list
-
-    if args.add_timestamp:
-        logfolder = f'{args.basedir}/{args.expname}{datetime.datetime.now().strftime("-%Y%m%d-%H%M%S")}'
-    else:
-        logfolder = f'{args.basedir}/{args.expname}'
-
-    # init log file
-    os.makedirs(logfolder, exist_ok=True)
-    os.makedirs(f'{logfolder}/imgs_vis', exist_ok=True)
-    os.makedirs(f'{logfolder}/imgs_rgba', exist_ok=True)
-    os.makedirs(f'{logfolder}/rgba', exist_ok=True)
-   
     aabb = train_dataset.scene_bbox.to(device)
     # make aabb to float32, just to be careful to avoid the error
     aabb = aabb.type(torch.float32)
-    
-    print("=====>aabb<======:", aabb)
-    print(" ======> local_dims:",args.local_dims_init)
     
     if args.ckpt is not None:
         ckpt = torch.load(args.ckpt, map_location=device)
@@ -395,7 +386,6 @@ def render_test(args, geo, test_dataset, train_dataset):
     # import pdb; pdb.set_trace()
     
     tensorf.load(ckpt)
-
 
     logfolder = os.path.dirname(args.ckpt)
     if args.render_train:

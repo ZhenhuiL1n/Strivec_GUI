@@ -21,10 +21,8 @@ class Space_vec(StrivecBase_hier):
         super(Space_vec, self).__init__(aabb, gridSize, device, **kargs)
         # here I init to initialize what we need for a strivec_base_hier, but for the time frame....
         self.density_line = self.init_one_svd(self.geo, self.density_n_comp, self.local_dims, 0.2, device, self.lvl)
-        print("density line is initialized, the length of the density line and the shape of each density line:", len(self.density_line), self.density_line[0].shape)
         self.app_line = self.init_one_svd(self.geo, self.app_n_comp, self.local_dims, 0.2, device, self.lvl)
-        print("app line is initialized, the length of the app line and the shape of each app line:", len(self.app_line), self.app_line[0].shape)
-    
+
         # basic liner mapping to the app_dim, for calculation of the color..
         self.basis_mat = torch.nn.ModuleList([torch.nn.Linear(self.app_n_comp[l][0], self.app_dim[l], bias=False).to(device) for l in range(len(self.app_dim))]).to(device)   
         self.theta_line, self.phi_line = None, None
