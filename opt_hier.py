@@ -44,6 +44,18 @@ def config_parser(cmd=None):
     parser.add_argument('--vis_interval', type=int, default= 1, help='fck u')
     parser.add_argument('--render_cam_num', type=int, default= 96, help='fck u')
 
+    ## rendering options ########################333
+
+    parser.add_argument('--dt_gamma', type=float, default=1/128, help="dt_gamma (>=0) for adaptive ray marching. set to 0 to disable, >0 to accelerate rendering (but usually with worse quality)")  
+    parser.add_argument('--test', action='store_true', help="test mode")
+    parser.add_argument('--fovy', type=float, default=50, help="default GUI camera fovy")
+    parser.add_argument('--max_spp', type=int, default=64, help="GUI rendering max sample per pixel")  
+    parser.add_argument('--radius', type=float, default=5, help="default GUI camera radius from center")
+    parser.add_argument('--W', type=int, default=1920, help="GUI width")
+    parser.add_argument('--H', type=int, default=1080, help="GUI height")
+    parser.add_argument('--bound', type=float, default=2, help="assume the scene is bounded in box[-bound, bound]^3, if > 1, will invoke adaptive ray marching.")
+    parser.add_argument('--max_steps', type=int, default=1024, help="max num steps sampled per ray (only valid when using --cuda_ray)")
+
     
     # mvs options
     parser.add_argument('--mvs_model', type=str, default='mvs_points',

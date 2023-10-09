@@ -3,9 +3,7 @@ import torch
 import numpy as np
 import dearpygui.dearpygui as dpg
 from scipy.spatial.transform import Rotation as R
-
-from .utils import *
-
+import torch.nn as nn
 
 class OrbitCamera:
     def __init__(self, W, H, r=2, fovy=60):
@@ -53,7 +51,7 @@ class OrbitCamera:
     
 
 class NeRFGUI:
-    def __init__(self, opt, trainer, train_loader=None, debug=True):
+    def __init__(self, opt, render_func, debug=True):
         self.opt = opt # shared with the trainer's opt to support in-place modification of rendering parameters.
         self.W = opt.W
         self.H = opt.H
@@ -62,11 +60,9 @@ class NeRFGUI:
         self.bg_color = torch.ones(3, dtype=torch.float32) # default white bg
         self.training = False
         self.step = 0 # training step 
+        self.render_func = render_func
 
-        self.trainer = trainer
-        self.train_loader = train_loader
-        if train_loader is not None:
-            self.trainer.error_map = train_loader._data.error_map
+        ## switch here to get the function working and output rgb and depth...
 
         self.render_buffer = np.zeros((self.W, self.H, 3), dtype=np.float32)
         self.need_update = True # camera moved, should reset accumulation
@@ -85,31 +81,7 @@ class NeRFGUI:
 
     def __del__(self):
         dpg.destroy_context()
-
-
-    def train_step(self):
-
-        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-        starter.record()
-
-        outputs = self.trainer.train_gui(self.train_loader, step=self.train_steps)
-
-        ender.record()
-        torch.cuda.synchronize()
-        t = starter.elapsed_time(ender)
-
-        self.step += self.train_steps
-        self.need_update = True
-
-        dpg.set_value("_log_train_time", f'{t:.4f}ms ({int(1000/t)} FPS)')
-        dpg.set_value("_log_train_log", f'step = {self.step: 5d} (+{self.train_steps: 2d}), loss = {outputs["loss"]:.4f}, lr = {outputs["lr"]:.5f}')
-
-        # dynamic train steps
-        # max allowed train time per-frame is 500 ms
-        full_t = t / self.train_steps * 16
-        train_steps = min(16, max(4, int(16 * 500 / full_t)))
-        if train_steps > self.train_steps * 1.2 or train_steps < self.train_steps * 0.8:
-            self.train_steps = train_steps
+        
 
     def prepare_buffer(self, outputs):
         if self.mode == 'image':
@@ -125,8 +97,8 @@ class NeRFGUI:
         
             starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
             starter.record()
-
-            outputs = self.trainer.test_gui(self.cam.pose, self.cam.intrinsics, self.W, self.H, self.time, self.bg_color, self.spp, self.downscale)
+            self.fid = round(self.opt.frames_num*self.time)
+            outputs = self.render_func(self.cam.pose, self.cam.intrinsics, self.W, self.H, self.fid, self.opt)
 
             ender.record()
             torch.cuda.synchronize()
@@ -315,7 +287,7 @@ class NeRFGUI:
 
                 # max_steps slider
                 def callback_set_max_steps(sender, app_data):
-                    self.opt.max_steps = app_data
+                    self.opt.max_steps = app_data 
                     self.need_update = True
 
                 dpg.add_slider_int(label="max steps", min_value=1, max_value=1024, format="%d", default_value=self.opt.max_steps, callback=callback_set_max_steps)
@@ -438,7 +410,5 @@ class NeRFGUI:
 
         while dpg.is_dearpygui_running():
             # update texture every frame
-            if self.training:
-                self.train_step()
             self.test_step()
             dpg.render_dearpygui_frame()

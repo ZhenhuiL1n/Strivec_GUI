@@ -38,11 +38,8 @@ class Space_vec(StrivecBase_hier):
         shp_rand = (self.args.shp_rand > 0) and (not eval)
         ji = (self.args.ji > 0) and (not eval)
     
-        # print("===========================> self.vecMode:", self.vecMode)
         xyz_sampled, t_min, ray_id, step_id, shift, pnt_rmatrix = self.sample_ray_cvrg_cuda(rays_chunk[:, :3], self.viewdirs, 
                                                                                             use_mask=True, N_samples=N_samples, random=shp_rand, ji=ji)
-
-        # print("xyz_sampled shape:",xyz_sampled.shape)
 
         self.shift = shift
         
@@ -51,9 +48,7 @@ class Space_vec(StrivecBase_hier):
         self.matMode = torch.BoolTensor([[0, 1, 1], [1, 0, 1], [1, 1, 0]]).cuda()  
         matMode = self.matMode    
         self.coordinate_plane = torch.stack((xyz_sampled[..., matMode[0]] * scale, xyz_sampled[..., matMode[1]] * scale, xyz_sampled[..., matMode[2]] * scale)).view(3, -1, 1, 2)
-        
-        # print("what is the coordinate plane shape here: -----> ", coordinate_plane.shape)
-        
+                
         local_gindx_s, local_gindx_l, local_gweight_s, local_gweight_l, local_kernel_dist, tensoRF_id, agg_id = self.sample_2_tensoRF_cvrg_hier(xyz_sampled, 
                                                                                                                                                 pnt_rmatrix=pnt_rmatrix, 
                                                                                                                                                 rotgrad=rot_step)
@@ -65,8 +60,6 @@ class Space_vec(StrivecBase_hier):
                                                         local_kernel_dist, 
                                                         tensoRF_id, agg_id, 
                                                         sample_num=len(ray_id))    
-
-        # print('what is the shape of figma_feature shape:', sigma_feature.shape)
 
         if shift is None:
             alpha = Raw2Alpha.apply(sigma_feature.flatten(), self.density_shift, self.stepSize * self.distance_scale).reshape(sigma_feature.shape)
@@ -97,11 +90,9 @@ class Space_vec(StrivecBase_hier):
         app_features = self.compute_appfeature_geo(local_gindx_s, local_gindx_l, local_gweight_s, local_gweight_l, local_kernel_dist, tensoRF_id, agg_id,
                                                    sample_num=len(ray_id), dir_gindx_s=dir_gindx_s, dir_gindx_l=dir_gindx_l, dir_gweight_l=dir_gweight_l)
         
-        # print('what is the shape of app_features:', app_features.shape)
         # here the wierd thing just happened, the tmin shape is smaller than the ray_id shape,
         # but after the masking operation, the t_min[ray_id].shape become the same as the ray_id shape.
         
-        # import pdb; pdb.set_trace()
         return sigma_feature, app_features, t_min, ray_id, step_id, weights, bg_weight
     
 

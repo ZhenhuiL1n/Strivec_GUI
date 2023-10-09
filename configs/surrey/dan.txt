@@ -6,7 +6,7 @@ n_iters = 8000
 batch_size = 16384
 
 cameras_num = 8
-frames_num = 50
+frames_num = 45
 recon_mode = test_static
 recon_frame = 49
 vis_every = 5000 # tesing/inference at every 'vis_every' iters
@@ -16,6 +16,19 @@ far = 6
 pre_N_iters = 2500
 vis_interval = 1
 render_cam_num = 96
+
+## -------------rendering option----------------
+
+W = 512
+H = 512
+radius = 3
+fovy = 50
+max_spp = 64
+test = True
+max_steps = 1024
+bound = 2
+
+##--------------------------------------
 
 #ckpt = /home/zhenhui/Nerf-Projects/Strivec_GUI/log/test_for_param/test_for_param.th
 upsamp_list = [1000,3000,4000,5500,7000]  
@@ -56,7 +69,6 @@ skip_zero_grad=1
 gpu_ids="0"
 vox_res = 320
 pointfile =./log/dan.txt # your own inital geometry
-#
 
 vox_range=[0.4, 0.4, 0.4, 0.2, 0.2, 0.2, 0.1, 0.1, 0.1] # distribute local tensors of different scales at every 'vox_range'; 0.4 for first scale, 0.2 for the second, and 0.1 for the third
 vox_center=[1,1,1]

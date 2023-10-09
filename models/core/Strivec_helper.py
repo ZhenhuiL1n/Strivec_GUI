@@ -155,7 +155,6 @@ class StrivecBase_hier(torch.nn.Module):
         return local_range, local_dims
 
     def update_stepSize(self, local_dims):
-        print("aabb", self.aabb.view(-1))
         self.aabbSize = self.aabb[1] - self.aabb[0]
         self.invaabbSize = 2.0/self.aabbSize
         if self.args.tensoRF_shape == "cube":
@@ -173,11 +172,7 @@ class StrivecBase_hier(torch.nn.Module):
             self.view_units = [torch.stack([torch.as_tensor(np.pi * 2, device=self.local_range.device, dtype=self.local_range.dtype) / local_dims[i][3], torch.as_tensor(np.pi, device=self.local_range.device, dtype=self.local_range.dtype) / local_dims[i][4]], dim=0) for i in range(self.lvl)]
 
         self.aabbDiag = torch.norm(self.aabbSize)
-        print("self.aabbDiag", self.aabbDiag)
         self.nSamples=int((self.aabbDiag / self.stepSize).item()) + 1
-        print("sampling step size: ", self.stepSize)
-        print("sampling grid size: ", self.gridSize)
-        print("nSamples: ", self.nSamples)
         self.create_sample_map()
         
 
@@ -332,7 +327,6 @@ class StrivecBase_hier(torch.nn.Module):
 
     def create_sample_map(self):
         # initialize local tensors acoording to initial geometry
-        print("start create mapping")
         self.tensoRF_cvrg_inds, self.tensoRF_count, self.tensoRF_topindx = [], [], []
         for l in range(self.lvl):
             if self.args.tensoRF_shape == "cube":
@@ -542,7 +536,6 @@ class StrivecBase_hier(torch.nn.Module):
             correct_aabb = torch.zeros_like(new_aabb)
             correct_aabb[0] = (1 - t_l_r) * self.aabb[0] + t_l_r * self.aabb[1]
             correct_aabb[1] = (1 - b_r_r) * self.aabb[0] + b_r_r * self.aabb[1]
-            print("aabb", new_aabb, "\ncorrect aabb", correct_aabb)
             new_aabb = correct_aabb
 
         self.aabb = new_aabb

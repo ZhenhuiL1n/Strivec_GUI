@@ -12,8 +12,10 @@ print(args)
 os.environ["CUDA_VISIBLE_DEVICES"]=args.gpu_ids
 
 from renderer import *
-from off_render import render_ray_provider
+from ray_provider import render_ray_provider
 from models.core.Strivec4d import Space_vec
+from gui import NeRFGUI
+from dataLoader.ray_utils import *
 
 renderer = OctreeRender_trilinear_fast
 
@@ -90,62 +92,60 @@ def create_model_container(args):
         Container.load(args=args, fid=i, geo=geo_all[i], local_dims=args.local_dims_final)
     
     return Container
-# Now suppose we have all the models we want, we also have the rays we want, we need to 
-# render them right now....
+
+
+# adjust the function below to interact with the gui......
 
 @torch.no_grad()
-def render_path(test_dataset, container, renderer, fids, savePath=None, N_vis=5, prtx='', N_samples=-1,
-                    white_bg=False, ray_type=0, compute_extra_metrics=True, device='cuda'):
-    PSNRs, rgb_maps, depth_maps = [], [], []
-    ssims,l_alex,l_vgg=[],[],[]
-    os.makedirs(savePath, exist_ok=True)
-    os.makedirs(savePath+"/rgbd", exist_ok=True)
+def render_gui(cam_pose, cam_intrinsics, H, W, fid, args, N_samples=-1, white_bg=False, ray_type=0, device='cuda'):
 
-    data = render_loader.get_rays_for_render()
-    rays_o, rays_d = data['rays_o'], data['rays_d']
-    length = rays_o.shape[0]
-    W, H = test_dataset.image_wh    
-    all_rays = torch.cat([rays_o, rays_d], dim = -1)  # (h*w, 6)     
-    near_far = test_dataset.near_far
-    
+    # get the height, width and the intrinsics
+
     length_frame = len(container.loaded_models)
-    
-    for idx in tqdm(range(all_rays.shape[0])):
 
-        tensorf = container.loaded_models[idx % length_frame]
-        rays = all_rays[idx]
-        rgb_map, _, depth_map, _, _ = renderer(rays, tensorf, chunk=8192, N_samples=N_samples,
-                                        ray_type=ray_type, white_bg = white_bg, device=device, return_depth=True)
+    if fid > length_frame:
+        fid = length_frame - 1
         
-        rgb_map = rgb_map.clamp(0.0, 1.0)
-        rgb_map, depth_map = rgb_map.reshape(H, W, 3).cpu(), depth_map.reshape(H, W).cpu()
- 
-        depth_map, _ = visualize_depth_numpy(depth_map.numpy(),near_far)
+    tensorf = container.loaded_models[fid]
+    height, width = H, W
+    fx, fy, cx, cy = cam_intrinsics[0], cam_intrinsics[1], cam_intrinsics[2], cam_intrinsics[3]
+    directions, _ = get_ray_directions(height, width, [fx, fy], [cx, cy])
+    cam_pose = torch.tensor(cam_pose, dtype=torch.float32, device=device)
+    directions = directions.to(device)
+    rays_o, rays_d = get_rays(directions, cam_pose)
+    rays = torch.cat([rays_o, rays_d], dim = -1) 
+    near_far = [args.near, args.far]
+    
+    rgb_map, _, depth_map, _, _ = renderer(rays, tensorf, chunk=8192, N_samples=N_samples,
+                                    ray_type=ray_type, white_bg = white_bg, device=device, return_depth=True)
+    
+    rgb_map = rgb_map.clamp(0.0, 1.0)
+    rgb_map, depth_map = rgb_map.reshape(H, W, 3).cpu(), depth_map.reshape(H, W).cpu()
 
-        rgb_map = (rgb_map.numpy() * 255).astype('uint8')
-        # rgb_map = np.concatenate((rgb_map, depth_map), axis=1)
-        rgb_maps.append(rgb_map)
-        depth_maps.append(depth_map)
-        if savePath is not None:
-            imageio.imwrite(f'{savePath}/{prtx}{idx:03d}.png', rgb_map)
-            rgb_map = np.concatenate((rgb_map, depth_map), axis=1)
-            imageio.imwrite(f'{savePath}/rgbd/{prtx}{idx:03d}.png', rgb_map)
+    depth_map_for_save, _ = visualize_depth_numpy(depth_map.numpy(), near_far)
 
-    imageio.mimwrite(f'{savePath}/{prtx}video.mp4', np.stack(rgb_maps), fps=30, quality=8)
-    imageio.mimwrite(f'{savePath}/{prtx}depthvideo.mp4', np.stack(depth_maps), fps=30, quality=8)
+    rgb_map_for_save = (rgb_map.numpy() * 255).astype('uint8')
+    
+    saving_path = f'/home/zhenhui/Nerf-Projects/Strivec_GUI/debug'
+    
+    #save the rgb and depth map to the saving path
+    save_img = np.concatenate((rgb_map_for_save, depth_map_for_save), axis=1)
+    imageio.imwrite(f'{saving_path}/rgb_depth.png', save_img)
+    
+    print("rendering running: saving image to:", )
+    
+    output = {
+        'depth': depth_map,
+        'image': rgb_map
+       }
+    
+    return output
 
-    return PSNRs
-
-
-def render_test(args, test_dataset, container, fids, device):
-    white_bg = test_dataset.white_bg
-    ray_type = args.ray_type
-
-
-    os.makedirs(f'{args.basedir}/render_path', exist_ok=True)
-    save_dir = f'{args.basedir}/render_path'
-    render_path(test_dataset, container, renderer, fids, save_dir,
-                            N_vis=-1, N_samples=-1, white_bg = white_bg, ray_type=ray_type,device=device)
+    
+class UI_Renderer(object):
+    
+    def __init__(self) -> None:
+        pass
 
 
 if __name__ == '__main__':
@@ -153,11 +153,9 @@ if __name__ == '__main__':
     args = comp_revise(args)    
     # create the render_ray_provider and 
     render_loader = render_ray_provider(args=args)
-    device = render_loader.device
     container = create_model_container(args=args)
-    render_test(args, render_loader, container, fids=[0, 1], device=device)
-
-    
+    gui = NeRFGUI(args, render_gui)
+    gui.render()
     # the shape of the all rays should be [101, h*w, 6]
     
     
