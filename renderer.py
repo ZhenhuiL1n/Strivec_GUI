@@ -16,22 +16,31 @@ def OctreeRender_trilinear_fast(rays, tensorf, time_emb = None, chunk=4096, N_sa
 
     # now we have a single value of time_emb, it is scalar and we need to repeat it for all the rays
     # and also all the rgbs.
+    import time
+
+    all_time = []
 
     for chunk_idx in range(N_rays_all // chunk + int(N_rays_all % chunk > 0)):
 
         rays_chunk = rays[chunk_idx * chunk:(chunk_idx + 1) * chunk].to(device)
         time_embed = time_emb
-        rgb_map, depth_map, rgbper, ray_id, weight = tensorf.compute_outputs(rays_chunk, is_train=is_train, 
+        # here we need to exam the speed here and try to optimize it.
+
+        rgb_map, depth_map, rgbper, ray_id, weight,time_passed = tensorf.compute_outputs(rays_chunk, is_train=is_train, 
                                                              white_bg=white_bg, ray_type=ray_type, 
                                                              N_samples=N_samples, return_depth=return_depth, 
                                                              eval=eval, time_emb = time_embed, 
                                                              rot_step=rot_step, depth_bg=depth_bg)
+    
         rgbs.append(rgb_map)
         depth_maps.append(depth_map)
         if rgbper is not None:
             rgbpers.append(rgbper)
             ray_ids.append(ray_id)
             weights.append(weight)
+        all_time.append(time_passed)
+    
+    print("time passed for each image", sum(all_time))
     
     return  torch.cat(rgbs) if len(rgbs) > 0 else None, torch.cat(weights) if len(weights) > 0 else None, \
             torch.cat(depth_maps) if return_depth else None, torch.cat(rgbpers) if len(rgbpers) > 0 else None, \

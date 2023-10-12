@@ -121,9 +121,9 @@ def render_gui(cam_pose, cam_intrinsics, H, W, fid, args, N_samples=-1, white_bg
     
     rgb_map = rgb_map.clamp(0.0, 1.0)
     rgb_map, depth_map = rgb_map.reshape(H, W, 3).cpu(), depth_map.reshape(H, W).cpu()
+    
 
-    depth_map_for_save, _ = visualize_depth_numpy(depth_map.numpy(), near_far)
-
+    depth_map_for_save, depth_map01 ,  _ = visualize_depth_numpy(depth_map.numpy(), near_far)
     rgb_map_for_save = (rgb_map.numpy() * 255).astype('uint8')
     
     saving_path = f'/home/zhenhui/Nerf-Projects/Strivec_GUI/debug'
@@ -135,17 +135,11 @@ def render_gui(cam_pose, cam_intrinsics, H, W, fid, args, N_samples=-1, white_bg
     print("rendering running: saving image to:", )
     
     output = {
-        'depth': depth_map,
-        'image': rgb_map
+        'depth': depth_map01,
+        'image': rgb_map.numpy()
        }
     
     return output
-
-    
-class UI_Renderer(object):
-    
-    def __init__(self) -> None:
-        pass
 
 
 if __name__ == '__main__':

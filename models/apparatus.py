@@ -414,7 +414,7 @@ class Raw2Alpha(torch.autograd.Function):
               = 1 - exp(log(1 + exp(density + shift)) ^ (-interval))
               = 1 - (1 + exp(density + shift)) ^ (-interval)
         '''
-        exp, alpha = render_utils_cuda.raw2alpha(density, shift, interval);
+        exp, alpha = render_utils_cuda.raw2alpha(density, shift, interval)
         if density.requires_grad:
             ctx.save_for_backward(exp)
             ctx.interval = interval
@@ -430,111 +430,6 @@ class Raw2Alpha(torch.autograd.Function):
         exp = ctx.saved_tensors[0]
         interval = ctx.interval
         return render_utils_cuda.raw2alpha_backward(exp, grad_back.contiguous(), interval), None, None
-
-
-class Raw2Alpha_randstep(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, density, shift, interval):
-        '''
-        alpha = 1 - exp(-softplus(density + shift) * interval)
-              = 1 - exp(-log(1 + exp(density + shift)) * interval)
-              = 1 - exp(log(1 + exp(density + shift)) ^ (-interval))
-              = 1 - (1 + exp(density + shift)) ^ (-interval)
-        '''
-        exp, alpha = render_utils_cuda.raw2alpha_randstep(density, shift, interval);
-        if density.requires_grad:
-            ctx.save_for_backward(exp)
-            ctx.interval = interval
-        return alpha
-
-    @staticmethod
-    @torch.autograd.function.once_differentiable
-    def backward(ctx, grad_back):
-        '''
-        alpha' = interval * ((1 + exp(density + shift)) ^ (-interval-1)) * exp(density + shift)'
-               = interval * ((1 + exp(density + shift)) ^ (-interval-1)) * exp(density + shift)
-        '''
-        exp = ctx.saved_tensors[0]
-        interval = ctx.interval
-        return render_utils_cuda.raw2alpha_randstep_backward(exp, grad_back.contiguous(), interval), None, None
-
-
-class GridSample1dVm(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, plane, line_1, line_2, line_3, xyz_sampled, aabb_low, aabb_high, units, lvl_units_l, local_range_l, local_dims_l, tensoRF_cvrg_inds_l, tensoRF_countl, tensoRF_topindx_l, geo_xyz_l, K_tensoRF_l, KNN):
-        # plane: plane_len (1 or 3), n_component[l][0], (int)(local_dims[l][0] * self.args.vm_dim_factor) + self.plane_add, (int)(local_dims[l][1] * self.args.vm_dim_factor) + self.plane_add)))
-        # line: len(self.geo_xyz[l]), n_component[l][0], local_dims[l][i] + self.line_add
-        plane_out, line_out, local_gindx_s, local_gindx_l, local_gweight_s, local_gweight_l, local_kernel_dist, final_tensoRF_id, final_agg_id, local_norm_xyz = grid_sample_1d.grid_sample_from_tensoRF(plane, line_1, line_2, line_3, xyz_sampled, aabb_low, aabb_high, units, lvl_units_l, local_range_l, local_dims_l, tensoRF_cvrg_inds_l, tensoRF_countl, tensoRF_topindx_l, geo_xyz_l, K_tensoRF_l, KNN)
-        if plane.requires_grad:
-            ctx.save_for_backward(local_gindx_s, local_gindx_l, local_gweight_s, local_gweight_l, final_tensoRF_id)
-            ctx.plane_dim = list(plane.shape)
-            ctx.line_dim = list(line_1.shape)
-        # print("line_out", line_out.shape, torch.max(line_out, 1)[0])
-        # print("plane_out", plane_out.shape, torch.max(plane_out, 1)[0])
-        return plane_out, line_out, local_gindx_s, local_gindx_l, local_gweight_s, local_gweight_l, local_kernel_dist, final_tensoRF_id, final_agg_id, local_norm_xyz
-
-    @staticmethod
-    @torch.autograd.function.once_differentiable
-    def backward(ctx, grad_planeout, grad_lineout, grad_local_gindx_s, grad_local_gindx_l, grad_local_gweight_s, grad_local_gweight_l, grad_local_kernel_dist, grad_final_tensoRF_id, grad_final_agg_id, grad_local_norm_xyz):
-        local_gindx_s, local_gindx_l, local_gweight_s, local_gweight_l, final_tensoRF_id = ctx.saved_tensors
-        plane_dim_lst = ctx.plane_dim
-        line_dim_lst = ctx.line_dim
-        planesurf_num, linesurf_num, component_num, res = plane_dim_lst[0], line_dim_lst[0], plane_dim_lst[1], plane_dim_lst[2]
-
-        grad_plane, grad_line_1, grad_line_2, grad_line_3 = grid_sample_1d.grid_sample_from_tensoRF_backward(local_gindx_s, local_gindx_l, local_gweight_s, local_gweight_l, final_tensoRF_id, grad_planeout.contiguous(), grad_lineout.contiguous(), planesurf_num, linesurf_num, component_num, res)
-        # print("grad_plane", grad_plane.shape, torch.max(grad_plane, -1)[0])
-        # print("grad_line_1", grad_line_1.shape, torch.max(grad_line_1, -1)[0])
-        # print("grad_line_2", grad_line_2.shape, torch.max(grad_line_2, -1)[0])
-        # print("grad_line_3", grad_line_3.shape, torch.max(grad_line_3, -1)[0])
-        return grad_plane, grad_line_1, grad_line_2, grad_line_3, None, None, None, None, None, None, None, None, None, None, None, None, None
-
-
-
-class GridSample1dVm_winds(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, plane, line_1, line_2, line_3, local_gindx_s, local_gindx_l, local_gweight_s, local_gweight_l, final_tensoRF_id):
-
-        plane_out, line_out = grid_sample_1d.cal_w_inds(plane, line_1, line_2, line_3, local_gindx_s, local_gindx_l, local_gweight_s, local_gweight_l, final_tensoRF_id)
-        if plane.requires_grad:
-            ctx.save_for_backward(local_gindx_s, local_gindx_l, local_gweight_s, local_gweight_l, final_tensoRF_id)
-            ctx.plane_dim = list(plane.shape)
-            ctx.line_dim = list(line_1.shape)
-        # print("line_out", line_out.shape, torch.max(line_out, 1)[0])
-        # print("plane_out", plane_out.shape, torch.max(plane_out, 1)[0])
-        return plane_out, line_out
-
-    @staticmethod
-    @torch.autograd.function.once_differentiable
-    def backward(ctx, grad_planeout, grad_lineout):
-        local_gindx_s, local_gindx_l, local_gweight_s, local_gweight_l, final_tensoRF_id = ctx.saved_tensors
-        plane_dim_lst = ctx.plane_dim
-        line_dim_lst = ctx.line_dim
-        planesurf_num, linesurf_num, component_num, res = plane_dim_lst[0], line_dim_lst[0], plane_dim_lst[1], plane_dim_lst[2]
-
-        grad_plane, grad_line_1, grad_line_2, grad_line_3 = grid_sample_1d.grid_sample_from_tensoRF_backward(local_gindx_s, local_gindx_l, local_gweight_s, local_gweight_l, final_tensoRF_id, grad_planeout.contiguous(), grad_lineout.contiguous(), planesurf_num, linesurf_num, component_num, res)
-        # print("grad_plane", grad_plane.shape, torch.max(grad_plane, -1)[0])
-        # print("grad_line_1", grad_line_1.shape, torch.max(grad_line_1, -1)[0])
-        # print("grad_line_2", grad_line_2.shape, torch.max(grad_line_2, -1)[0])
-        # print("grad_line_3", grad_line_3.shape, torch.max(grad_line_3, -1)[0])
-        return grad_plane, grad_line_1, grad_line_2, grad_line_3, None, None, None, None, None
-
-
-def raw2alpha_only(sigma, dist):
-    # sigma, dist  [N_rays, N_samples]
-    alpha = 1. - torch.exp(-sigma*dist)
-    return alpha
-
-def grid_xyz(center, local_range, local_dims):
-    xs = torch.linspace(center[0]-local_range[0], center[0]+local_range[0], steps=local_dims[0]+1,
-                        device=local_range.device,  dtype=local_range.dtype)
-    ys = torch.linspace(center[1]-local_range[1], center[1]+local_range[1], steps=local_dims[1]+1,
-                        device=local_range.device,  dtype=local_range.dtype)
-    zs = torch.linspace(center[2]-local_range[2], center[2]+local_range[2], steps=local_dims[2]+1,
-                        device=local_range.device,  dtype=local_range.dtype)
-    xx = xs.view(-1, 1, 1).repeat(1, len(ys), len(zs))
-    yy = ys.view(1, -1, 1).repeat(len(xs), 1, len(zs))
-    zz = zs.view(1, 1, -1).repeat(len(xs), len(ys), 1)
-    return torch.stack([xx, yy, zz], dim=-1).reshape(-1, 3)
 
 class Alphas2Weights(torch.autograd.Function):
     @staticmethod

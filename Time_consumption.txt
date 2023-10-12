@@ -1,0 +1,13 @@
+Render_cost_like: 0.033
+
+sampleing: 0.013
+
+
+#feature_selection: 0.23
+beaking down this one:
+
+1. sample2tensorf: 0.008910655975341797
+2. compute geo features: 0.00862884521484375
+3. Raw2ALpha(2 depth):  0.19232535362243652
+4. compute app features: 0.026143550872802734
+5. Alphas2weight: 0.002

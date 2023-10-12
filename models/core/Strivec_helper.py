@@ -394,18 +394,26 @@ class StrivecBase_hier(torch.nn.Module):
         near, far = self.near_far
         rays_o = rays_o.view(-1, 3).contiguous()
         rays_d = rays_d.view(-1, 3).contiguous()
+        
+        print("ray shape before inputting:", rays_o.shape)
+        
         shift = None
         pnt_rmatrix = None
         if self.args.tensoRF_shape == "cube":
             ray_pts, mask_valid, ray_id, step_id, N_steps, t_min, t_max = \
             search_geo_cuda.sample_pts_on_rays_cvrg(rays_o, rays_d, self.tensoRF_cvrg_filter, \
-                                                    self.units, self.aabb[0], self.aabb[1], near, far, self.stepSize)
-               
+                                                    self.units, self.aabb[0], self.aabb[1], near, \
+                                                    far, self.stepSize)
+            
+
+            
         if use_mask:
             ray_pts = ray_pts[mask_valid]
             ray_id = ray_id[mask_valid]
             step_id = step_id[mask_valid]
         
+        # the t_min, t_max can be clamped to the be the delta in this code.....
+        print("ray_pts after inputting:", ray_pts.shape)
         return ray_pts, t_min, ray_id, step_id, shift, pnt_rmatrix
 
 

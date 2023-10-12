@@ -107,9 +107,6 @@ def train(args, train_dataset, render_dataset):
     near_far = train_dataset.near_far
     ray_type = args.ray_type
     
-    print("white_bg", white_bg, "near_far", train_dataset.near_far, "start training.......")
-
-
     # we have intialized the geo and the dataset, now we need to intialize the model.
     
     # init resolution
